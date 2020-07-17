@@ -21,7 +21,7 @@ export const throttle = (targetFun, interval = 500) => {
     let current = +new Date();
     let context = this;
     let args = arguments;
-    if ((current - lastTime)>interval) {
+    if ((current - lastTime) > interval) {
       lastTime = current
       targetFun.apply(context, args)
     }

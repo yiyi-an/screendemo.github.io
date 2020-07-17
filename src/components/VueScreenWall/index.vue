@@ -1,63 +1,69 @@
 <template>
   <div>
-  <template v-if="curtainMode==='full'">
-    <div class="full-page-wrapper" :style="{ position, height, width }" ref="fullPage">
-      <div class="all-page" ref="allPage" :style="{transform:transformBind}">
-          <div class="page"
-              :ref="`page${p}`"  
-            v-for="(p, index) in pagesArr"
-            :key="index"
-            :style="{
-              height: fullHeight + 'px',
-              width: fullWidth + 'px',
-              'background-color':  p.bgColor || '',
-              'background-image': (p.src && `url(${p.src})`) || ''
-            }">
-            <div class="page-box" v-if="currentPage == p.page">
-              <slot :name="`page${p.page}`"></slot>
+  <!-- 全屏模式 -->
+    <template v-if="curtainMode==='full'">
+      <div class="full-page-wrapper" :style="{ position, height, width }" ref="fullPage">
+        <div class="all-page" ref="allPage" :style="{transform:transformBind}">
+            <div class="page"
+                :ref="`page${p}`"  
+              v-for="(p, index) in pagesArr"
+              :key="index"
+              :style="{
+                height: fullHeight + 'px',
+                width: fullWidth + 'px',
+                'background-color':  p.bgColor || '',
+                'background-image': (p.src && `url(${p.src})`) || ''
+              }">
+              <div class="page-box" v-if="currentPage === p.page">
+                <slot :name="`page${p.page}`"></slot>
+              </div>
             </div>
-          </div>
-      </div>
+        </div>
 
-      <!-- 导航按钮 -->
-      <div class="navigation" :class="pointerPos" v-if="showNavigation && curtainMode==='full'">
-        <ul>
-          <li
-            @click="switchPage(index)"
-            v-for="(p,index) in pagesArr"
-            :class="{active:currentPage == index }"
-            :style="{'background-color':currentPage == index ? p.navigationColor : 'rgba(187,187,187)' }"
-            :key="index"
-          ></li>
-        </ul>
+        <!-- 导航按钮 -->
+        <div class="navigation" :class="pointerPos" v-if="showNavigation && curtainMode==='full'">
+          <ul>
+            <li
+              @click="switchPage(index)"
+              v-for="(p,index) in pagesArr"
+              :class="{active:currentPage == index }"
+              :style="{'background-color':currentPage == index ? p.navigationColor : 'rgba(187,187,187)' }"
+              :key="index"
+            ></li>
+          </ul>
+        </div>
       </div>
-    </div>
-  </template>
-  <template v-else>
-     <div class="full-page-wrapper" ref="fullPage">
-      <div class="all-page" ref="allPage" :style="{transform:transformBind}">
-          <div class="page"
-              :ref="`page${p}`"  
-            v-for="(p, index) in pagesArr"
-            :key="index"
-            :style="{
-              height: fullHeight + 'px',
-              width: fullWidth + 'px',
-              'background-color':  p.bgColor || '',
-              'background-image': (p.src && `url(${p.src})`) || ''
-            }">
-            <div class="page-box">
-              <slot :name="`page${p.page}`"></slot>
+    </template>
+
+    <!-- 滚动条模式 -->
+    <template v-else>
+      <div class="full-page-wrapper" ref="fullPage">
+        <div class="all-page" ref="allPage" :style="{transform:transformBind}">
+            <div class="page"
+                :ref="`page${p}`"  
+              v-for="(p, index) in pagesArr"
+              :key="index"
+              :style="{
+                height: fullHeight + 'px',
+                width: fullWidth + 'px',
+                'background-color':  p.bgColor || '',
+                'background-image': (p.src && `url(${p.src})`) || ''
+              }">
+              <div class="page-box">
+                <slot :name="`page${p.page}`"></slot>
+              </div>
             </div>
-          </div>
+        </div>
       </div>
-    </div>
-  </template>
+    </template>
   </div>
 </template>
 
 <script>
 import { debounce,throttle } from './utils'
+
+let scrollEvent //用来存放滚动条监听的事件
+
 export default {
   name: "MvFullPage",
   props: {
@@ -98,17 +104,6 @@ export default {
       default: "100vh"
     },
     /**
-     * 页面总数
-     */
-    
-    /**
-     * 当前页面
-     */
-    page: {
-      type: Number,
-      default: 1
-    },
-    /**
      * 默认页面背景
      */
     pageProps: {
@@ -129,7 +124,8 @@ export default {
       maxX: 0,
       currentPage: 0, // 当前页面页码
       isUp: false, // 是否向上滑动
-      subScrollEl: null // 触发源为内部滚动子元素dom
+      subScrollEl: null, // 触发源为内部滚动子元素dom
+      pageEntedList:[]
     };
   },
   computed: {
@@ -155,42 +151,23 @@ export default {
       isShow: index == 0 ? true : false
     }
   })
-    // 直接通过slot创建
-    // this.$nextTick(()=>{
-    //     this.pagesArr = Object.keys(this.$slots).map((item,index)=> {
-    //       return  {
-    //         page: index ,
-    //         isShow: index == 0 ? true : false
-    //       }
-    //     }
-    //  )
-    // })
   },
   mounted() {
     if(this.curtainMode==='full'){
       // 初始化页面宽高
       this.initPageWH();
       // 初始化页面滑动事件
-      this.initPageListener();
+      this.initWheelListener();
       // 监听窗口大小变化
       this.initResize()
 
-      this.$emit('pageEnter',this.pagesArr[this.currentPage])
+      this.pcScroll({target:{scrollTop:0}})
     }else{
       this.initPageWH(true);
 
+      this.initScrollListener()
       this.initResize()
-    }
-  },
-  watch: {
-    // page: {
-    //   handler: function(val) {
-    //     this.switchPage(val)
-    //   },
-    //   immediate: true
-    // },
-    currentPage(value) {
-      this.$emit("update:page", value);
+      this.$emit('pageEnter',this.pagesArr[this.currentPage])
     }
   },
   methods: {
@@ -198,21 +175,21 @@ export default {
       window.onresize = debounce((e)=>{
         const {innerHeight} = e.target
         if(innerHeight< this.minHeight){
-          console.log('窗口尺寸小屏',innerHeight)
+          // console.log('窗口尺寸小屏',innerHeight)
           if(this.curtainMode==='scroll'){
-            console.log("小屏变小屏,不用动")
+            // console.log("小屏变小屏,不用动")
             return 
           }else{
-            console.log("大屏变小屏,重新载入页面")
+            // console.log("大屏变小屏,重新载入页面")
             location.reload()
           }
         }else{
-          console.log('窗口尺寸大屏',innerHeight)
+          // console.log('窗口尺寸大屏',innerHeight)
           if(this.curtainMode==='scroll'){
-            console.log("小屏变大屏,重新载入页面")
+            // console.log("小屏变大屏,重新载入页面")
              location.reload()
           }else{
-             console.log("大屏变大屏: 重新计算每屏宽高、重新定位")
+             // console.log("大屏变大屏: 重新计算每屏宽高、重新定位")
             this.initPageWH()
             this.$nextTick(()=>{
               this.rollOffset =-((this.currentPage +1 ) * this.fullHeight) + this.fullHeight;
@@ -236,8 +213,30 @@ export default {
       // 初始化容器宽度
       this.$refs.allPage.style.width = this.fullWidth * this.pages + "px";
     },
-    initPageListener() {
+    initScrollListener(){
+      scrollEvent = throttle(this.pcScroll,100)
+      document.body.addEventListener('scroll',scrollEvent )
+    },
+    initWheelListener() {
       window.onmousewheel = document.onmousewheel = throttle(this.pcRoll,200)
+    },
+    /**
+     * @description 滚动条模式的监听事件,  
+     * 滚动到对应页面时触发pageEnter,  全部都触发过一次后 移除EventListener
+     * 故每屏的动画只能触发一次
+     */
+    pcScroll(e){
+      const sTop = e.target.scrollTop
+      const index = Math.floor((sTop +100)/ this.fullHeight)
+      if(this.pageEntedList.includes(index)){
+        return 
+      }else{
+        this.$emit('pageEnter',this.pagesArr[index])
+        this.pageEntedList.push(index)
+        if(this.pageEntedList.length === this.pagesArr.length){
+          document.body.removeEventListener('scroll',scrollEvent)
+        }
+      }
     },
     pcRoll(e) {
       window.onmousewheel = document.onmousewheel = null
@@ -247,7 +246,7 @@ export default {
         this.switchPage(false);
       }
       setTimeout(() => {
-         this.initPageListener()
+         this.initWheelListener()
       }, 1200);
     },
     /**
@@ -276,7 +275,7 @@ export default {
         }
       }
     },
-    // 页面切换的钩子
+    // 全品模式页面切换的钩子
     monitorTransition(pageProp){
       let rollTransitionend = () => {
           setTimeout(() => {
@@ -295,6 +294,7 @@ export default {
   },
   destroyed() {
     window.onmousewheel = document.onmousewheel = null;
+    document.body.removeEventListener('scroll',scrollEvent)
   }
 };
 </script>
@@ -313,10 +313,10 @@ export default {
   }
   .page {
     z-index: 11;
+    overflow: hidden;
     background-size: cover;
     background-repeat: no-repeat;
     position: relative;
-    // transition: all 0.1s linear;
   }
   .page-box {
     position: absolute;

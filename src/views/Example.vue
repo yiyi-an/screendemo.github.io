@@ -1,64 +1,58 @@
 <template>
-  <div class="home">
-    <VueScreenWall
+    <vue-screen-wall
       v-if="isV"
       showNavigation
       :min-Height="700"
-      :page.sync="currentPage"
       :pageProps="pageProps"
       @pageEnter="pageEnter">
       <template #page0>
-        <div class="basic page0"
+        <div class="basic page0" 
           ref='component0'>
           page1
         </div>
       </template>
 
       <template #page1>
-        <div class="basic page1"
+        <div class="basic page1"  
           ref='component1'>
           page2
         </div>
       </template>
 
       <template #page2>
-        <div class="basic page2"
+        <div class="basic page2" 
           ref='component2'>
           3
         </div>
       </template>
 
       <template #page3>
-        <div class="basic page3"
+        <div class="basic page3" 
           ref='component3'>
           4
         </div>
       </template>
 
       <template #page4>
-        <div class="basic page4"
+        <div class="basic page4" 
           ref='component4'>
           5
         </div>
       </template>
-    </VueScreenWall>
-  </div>
+    </vue-screen-wall>
 </template>
 
 <script>
 import VueScreenWall from "../components/VueScreenWall";
 
 export default {
-  name: "home",
   components: {
     VueScreenWall
   },
   data() {
     return {
       isV: true,
-      currentPage: 0,
       activePage: undefined,
-      page0show: false,
       pageProps: [
         {
           bgColor: "#0082fa",
@@ -89,11 +83,16 @@ export default {
     };
   },
   methods: {
+    /**
+     * @description 页面进入时触发, 在这里手动执行对应页面的动画
+     * @param p 页面配置
+     */
     pageEnter(p) {
       console.log(`page${p.page} 进入完成`);
       this.activePage = p.page;
       const targetComponent = this.$refs[`component${p.page}`];
       const cla = targetComponent.className;
+      targetComponent.style.display = 'block'
       if (!(p.page % 2)) {
         targetComponent.className = cla.concat(" animate1-enter-active");
       } else {
@@ -105,10 +104,11 @@ export default {
 </script>
 <style lang="scss" scoped>
 .basic {
+  display: none;
   text-align: center;
-  width: 600px;
-  height: 450px;
-  line-height: 450px;
+  width: 500px;
+  height: 400px;
+  line-height: 400px;
   position: absolute;
   top: 0;
   right: 0;
@@ -160,17 +160,16 @@ export default {
 }
 @keyframes animate2 {
   0% {
-    transform: rotate(720deg);
+    transform: translate(0,100px);
     opacity: 0;
   }
-  25% {
+  60% {
+    transform: translate(0,0);
     opacity: 1;
-  }
-  40% {
-    transform: rotate(360deg) scale(0.4);
+
   }
   80% {
-    transform: rotate(0deg) scale(1.6);
+    transform: scale(1.4);
   }
   100% {
     transform: scale(1);
